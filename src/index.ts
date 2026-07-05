@@ -36,8 +36,11 @@ program
 
 program
   .command("analyze")
-  .description("Run AI analysis on indexed commits")
-  .action(analyzeCommand);
+  .description("Run AI analysis on unanalyzed chunks")
+  .argument("[directory]", "Target directory", process.cwd())
+  .option("-r, --retry", "Retry failed chunks")
+  .option("-m, --model <name>", "AI model name", "gemini-2.0-flash")
+  .action((dir, opts) => analyzeCommand(dir, { retry: opts.retry ?? false, model: opts.model }));
 
 program
   .command("embed")
