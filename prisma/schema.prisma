@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Repository {
+  id                String    @id @default(uuid())
+  path              String    @unique
+  name              String
+  defaultBranch     String?
+  headCommit        String?
+  lastIndexedAt     DateTime?
+  lastIndexedCommit String?
+  gitVersion        String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  commits  Commit[]
+  files    File[]
+  branches Branch[]
+  tags     Tag[]
+  jobs     Job[]
+}
+
+model Commit {
+  id           String   @id @default(uuid())
+  hash         String
+  message      String
+  authorName   String
+  authorEmail  String?
+  authorDate   DateTime
+  insertions   Int      @default(0)
+  deletions    Int      @default(0)
+  parentHashes String?
+  status       String   @default("PENDING")
+
+  repositoryId String
+  repository   Repository   @relation(fields: [repositoryId], references: [id])
+  files        CommitFile[]
+  analyses     Analysis[]
+
+  @@unique([hash, repositoryId])
+}
+
+model File {
+  id           String @id @default(uuid())
+  path         String
+
+  repositoryId String
+  repository   Repository   @relation(fields: [repositoryId], references: [id])
+  commits      CommitFile[]
+
+  @@unique([path, repositoryId])
+}
+
+model CommitFile {
+  id         String @id @default(uuid())
+  status     String // added|modified|deleted|renamed
+  insertions Int    @default(0)
+  deletions  Int    @default(0)
+
+  commitId String
+  commit   Commit @relation(fields: [commitId], references: [id])
+  fileId   String
+  file     File   @relation(fields: [fileId], references: [id])
+
+  @@unique([commitId, fileId])
+}
+
+model Branch {
+  id         String   @id @default(uuid())
+  name       String
+  commitHash String
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+
+  @@unique([name, repositoryId])
+}
+
+model Tag {
+  id         String   @id @default(uuid())
+  name       String
+  commitHash String
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+
+  @@unique([name, repositoryId])
+}
+
+model Analysis {
+  id            String   @id @default(uuid())
+  model         String?
+  promptVersion String?
+  summary       String?
+  category      String?
+  risk          String?
+  keywords      String?
+  confidence    Float?
+  status        String   @default("PENDING")
+  createdAt     DateTime @default(now())
+
+  commitId String
+  commit   Commit @relation(fields: [commitId], references: [id])
+}
+
+model Job {
+  id            String    @id @default(uuid())
+  type          String    // INDEX|ANALYZE|EMBED
+  status        String    @default("PENDING") // PENDING|RUNNING|SUCCESS|FAILED
+  totalItems    Int       @default(0)
+  processedItems Int      @default(0)
+  failedItems   Int       @default(0)
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+}
