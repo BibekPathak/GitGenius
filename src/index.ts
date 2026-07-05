@@ -44,8 +44,10 @@ program
 
 program
   .command("embed")
-  .description("Generate embeddings for analyzed commits")
-  .action(embedCommand);
+  .description("Generate embeddings for analyzed chunks")
+  .argument("[directory]", "Target directory", process.cwd())
+  .option("-m, --model <name>", "Embedding model name", "text-embedding-004")
+  .action((dir, opts) => embedCommand(dir, { model: opts.model }));
 
 program
   .command("search")

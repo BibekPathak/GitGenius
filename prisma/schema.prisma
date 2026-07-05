@@ -19,12 +19,13 @@ model Repository {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  commits  Commit[]
-  chunks   Chunk[]
-  files    File[]
-  branches Branch[]
-  tags     Tag[]
-  jobs     Job[]
+  commits    Commit[]
+  chunks     Chunk[]
+  embeddings Embedding[]
+  files      File[]
+  branches   Branch[]
+  tags       Tag[]
+  jobs       Job[]
 }
 
 model Commit {
@@ -124,8 +125,9 @@ model Chunk {
   createdAt    DateTime @default(now())
 
   repositoryId String
-  repository   Repository  @relation(fields: [repositoryId], references: [id])
+  repository   Repository   @relation(fields: [repositoryId], references: [id])
   commits      ChunkCommit[]
+  embeddings   Embedding[]
 }
 
 model ChunkCommit {
@@ -138,6 +140,23 @@ model ChunkCommit {
   @@unique([chunkId, commitId])
 }
 
+model Embedding {
+  id           String   @id @default(uuid())
+  model        String
+  vector       String   // JSON array of floats: "[0.1, 0.2, ...]"
+  dimension    Int
+  sourceType   String   // "chunk" | "commit"
+  sourceId     String
+  content      String   // text that was embedded (for debugging/search)
+  createdAt    DateTime @default(now())
+
+  repositoryId String
+  repository   Repository @relation(fields: [repositoryId], references: [id])
+
+  chunkId  String?
+  chunk    Chunk?  @relation(fields: [chunkId], references: [id])
+}
+
 model Job {
   id            String    @id @default(uuid())
   type          String    // INDEX|ANALYZE|EMBED|CHUNK
@@ -147,6 +166,7 @@ model Job {
   failedItems   Int       @default(0)
   startedAt     DateTime?
   completedAt   DateTime?
+  createdAt     DateTime @default(now())
 
   repositoryId String
   repository   Repository @relation(fields: [repositoryId], references: [id])
