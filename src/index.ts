@@ -51,9 +51,11 @@ program
 
 program
   .command("search")
-  .description("Search indexed repository")
-  .argument("[query]", "Search query")
-  .action(searchCommand);
+  .description("Hybrid search (BM25 + vector) across commits")
+  .argument("<query>", "Search query")
+  .argument("[directory]", "Target directory")
+  .option("-l, --limit <number>", "Max results", "10")
+  .action((query, dir, opts) => searchCommand(query, dir, { limit: parseInt(opts.limit, 10) }));
 
 program
   .command("ask")
