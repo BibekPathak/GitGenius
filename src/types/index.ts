@@ -37,6 +37,22 @@ export const AnalysisStatus = {
 } as const;
 export type AnalysisStatus = (typeof AnalysisStatus)[keyof typeof AnalysisStatus];
 
+export const ChunkStatus = {
+  PENDING: "PENDING",
+  ANALYZING: "ANALYZING",
+  ANALYZED: "ANALYZED",
+  FAILED: "FAILED",
+} as const;
+export type ChunkStatus = (typeof ChunkStatus)[keyof typeof ChunkStatus];
+
+export interface ChunkInput {
+  startIndex: number;
+  endIndex: number;
+  commitCount: number;
+  repositoryId: string;
+  commitIds: string[];
+}
+
 export interface ParsedCommit {
   hash: string;
   message: string;

@@ -1,18 +1,37 @@
 import { PrismaClient } from "@prisma/client";
 
-let prisma: PrismaClient | null = null;
+const clients = new Map<string, PrismaClient>();
 
 export function getPrisma(dbPath: string): PrismaClient {
-  if (prisma) return prisma;
+  const existing = clients.get(dbPath);
+  if (existing) return existing;
 
-  process.env.DATABASE_URL = `file:${dbPath}`;
-  prisma = new PrismaClient();
+  const prisma = new PrismaClient({
+    datasources: { db: { url: `file:${dbPath}` } },
+  });
+  clients.set(dbPath, prisma);
   return prisma;
 }
 
-export async function closePrisma(): Promise<void> {
-  if (prisma) {
-    await prisma.$disconnect();
-    prisma = null;
+export async function closePrisma(dbPath?: string): Promise<void> {
+  if (dbPath) {
+    const client = clients.get(dbPath);
+    if (client) {
+      await client.$disconnect();
+      clients.delete(dbPath);
+    }
+    return;
   }
+
+  for (const [path, client] of clients) {
+    await client.$disconnect();
+    clients.delete(path);
+  }
+}
+
+export function clearPrismaClients(): void {
+  for (const [, client] of clients) {
+    client.$disconnect();
+  }
+  clients.clear();
 }

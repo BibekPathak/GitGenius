@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { initCommand } from "./commands/init.js";
 import { indexCommand } from "./commands/indexCmd.js";
+import { chunkCommand } from "./commands/chunk.js";
 import { analyzeCommand } from "./commands/analyze.js";
 import { embedCommand } from "./commands/embed.js";
 import { searchCommand } from "./commands/search.js";
@@ -25,6 +26,13 @@ program
   .description("Parse git history and store commits")
   .argument("[directory]", "Target directory", process.cwd())
   .action(indexCommand);
+
+program
+  .command("chunk")
+  .description("Group indexed commits into chunks for AI analysis")
+  .argument("[directory]", "Target directory", process.cwd())
+  .option("-s, --size <number>", "Commits per chunk", "50")
+  .action((dir, opts) => chunkCommand(dir, { size: parseInt(opts.size, 10) }));
 
 program
   .command("analyze")

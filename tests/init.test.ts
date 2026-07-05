@@ -59,7 +59,7 @@ describe("init", () => {
   });
 
   it("fails when run outside a git repository", async () => {
-    const nonRepoDir = join(TMP_DIR, "not-a-repo");
+    const nonRepoDir = "/tmp/not-a-repo";
     rmSync(nonRepoDir, { recursive: true, force: true });
 
     await expect(initCommand(nonRepoDir)).rejects.toThrow();

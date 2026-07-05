@@ -20,6 +20,7 @@ model Repository {
   updatedAt         DateTime  @updatedAt
 
   commits  Commit[]
+  chunks   Chunk[]
   files    File[]
   branches Branch[]
   tags     Tag[]
@@ -42,6 +43,7 @@ model Commit {
   repository   Repository   @relation(fields: [repositoryId], references: [id])
   files        CommitFile[]
   analyses     Analysis[]
+  chunks       ChunkCommit[]
 
   @@unique([hash, repositoryId])
 }
@@ -109,9 +111,36 @@ model Analysis {
   commit   Commit @relation(fields: [commitId], references: [id])
 }
 
+model Chunk {
+  id           String   @id @default(uuid())
+  startIndex   Int
+  endIndex     Int
+  commitCount  Int
+  summary      String?
+  topics       String?
+  keywords     String?
+  risks        String?
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+
+  repositoryId String
+  repository   Repository  @relation(fields: [repositoryId], references: [id])
+  commits      ChunkCommit[]
+}
+
+model ChunkCommit {
+  id       String @id @default(uuid())
+  chunkId  String
+  chunk    Chunk  @relation(fields: [chunkId], references: [id])
+  commitId String
+  commit   Commit @relation(fields: [commitId], references: [id])
+
+  @@unique([chunkId, commitId])
+}
+
 model Job {
   id            String    @id @default(uuid())
-  type          String    // INDEX|ANALYZE|EMBED
+  type          String    // INDEX|ANALYZE|EMBED|CHUNK
   status        String    @default("PENDING") // PENDING|RUNNING|SUCCESS|FAILED
   totalItems    Int       @default(0)
   processedItems Int      @default(0)

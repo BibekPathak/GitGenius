@@ -30,7 +30,7 @@ describe("running from subdirectory", () => {
   });
 
   it("fails when run from outside a git repo", async () => {
-    const nonRepoDir = join(TMP_DIR, "outside");
+    const nonRepoDir = "/tmp/outside-repo-test";
     await expect(indexCommand(nonRepoDir)).rejects.toThrow();
   });
 });
