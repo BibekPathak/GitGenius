@@ -9,6 +9,8 @@ import { createGeminiEmbedder } from "../embeddings/gemini.js";
 import { createMockEmbedder } from "../embeddings/mock.js";
 import type { EmbeddingProvider } from "../embeddings/types.js";
 import { search } from "../search/index.js";
+import { FileCache } from "../cache/index.js";
+import { cacheDir } from "../utils/paths.js";
 import { spinner } from "../utils/spinner.js";
 
 export interface SearchOptions {
@@ -71,13 +73,19 @@ export async function searchCommand(
   }
 
   const limit = options?.limit ?? 10;
+  const cache = new FileCache(cacheDir(repoRoot));
 
   try {
-    const results = await search(prisma, repo.id, query, embedder, {
-      limit,
-      bm25Weight: options?.bm25Weight ?? 0.4,
-      vectorWeight: options?.vectorWeight ?? 0.6,
-    });
+    const cacheKey = "search:" + cache.contentHash(query);
+    const results = await cache.getOrSetAsync(
+      cacheKey,
+      () => search(prisma, repo.id, query, embedder, {
+        limit,
+        bm25Weight: options?.bm25Weight ?? 0.4,
+        vectorWeight: options?.vectorWeight ?? 0.6,
+      }),
+      5 * 60 * 1000 // 5 min TTL
+    );
 
     await closePrisma();
 

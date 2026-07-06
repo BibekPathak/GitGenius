@@ -8,6 +8,8 @@ import { getRepository } from "../db/queries.js";
 import { createJob, updateJob } from "../db/queries.js";
 import { createGeminiProvider } from "../ai/gemini.js";
 import type { AIProvider, ChunkData, AnalyzeResult, ChunkAnalysis } from "../ai/types.js";
+import { FileCache } from "../cache/index.js";
+import { cacheDir } from "../utils/paths.js";
 import { spinner } from "../utils/spinner.js";
 
 export interface AnalyzeOptions {
@@ -89,6 +91,8 @@ export async function analyzeCommand(
   let processed = 0;
   let failed = 0;
 
+  const cache = new FileCache(cacheDir(repoRoot));
+
   for (const chunk of chunks) {
     // Load commits for this chunk
     const chunkCommits = await prisma.chunkCommit.findMany({
@@ -126,7 +130,12 @@ export async function analyzeCommand(
     sp.text = `Analyzing chunk ${chunk.startIndex + 1}-${chunk.endIndex + 1} (${commitData.length} commits)...`;
 
     try {
-      const analysis = await provider.analyze(chunkData);
+      const cacheKey = "analyze:" + cache.contentHash(JSON.stringify(chunkData));
+      const analysis = await cache.getOrSetAsync(
+        cacheKey,
+        () => provider.analyze(chunkData),
+        7 * 24 * 60 * 60 * 1000 // 7 day TTL
+      );
 
       await prisma.chunk.update({
         where: { id: chunk.id },

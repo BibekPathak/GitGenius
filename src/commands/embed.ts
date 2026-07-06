@@ -7,6 +7,8 @@ import { getPrisma, closePrisma } from "../db/client.js";
 import { getRepository, createJob, updateJob } from "../db/queries.js";
 import { createGeminiEmbedder } from "../embeddings/gemini.js";
 import type { EmbeddingProvider } from "../embeddings/types.js";
+import { FileCache } from "../cache/index.js";
+import { cacheDir } from "../utils/paths.js";
 import { spinner } from "../utils/spinner.js";
 
 export interface EmbedOptions {
@@ -104,6 +106,8 @@ export async function embedCommand(
   let processed = 0;
   let failed = 0;
 
+  const cache = new FileCache(cacheDir(repoRoot));
+
   for (const chunk of chunks) {
     sp.text = `Embedding chunk ${chunk.startIndex + 1}-${chunk.endIndex + 1}...`;
 
@@ -118,7 +122,12 @@ export async function embedCommand(
         commitMessages
       );
 
-      const result = await embedder.embed(text);
+      const cacheKey = "embed:" + cache.contentHash(text);
+      const result = await cache.getOrSetAsync(
+        cacheKey,
+        () => embedder.embed(text),
+        30 * 24 * 60 * 60 * 1000 // 30 day TTL
+      );
 
       await prisma.embedding.create({
         data: {

@@ -12,6 +12,7 @@ import { ownershipCommand } from "./commands/ownership.js";
 import { hotspotsCommand } from "./commands/hotspots.js";
 import { releaseCommand } from "./commands/release.js";
 import { reportCommand } from "./commands/report.js";
+import { cacheCommand } from "./commands/cache.js";
 
 const program = new Command();
 
@@ -111,5 +112,12 @@ program
   .argument("[directory]", "Target directory")
   .option("-f, --format <format>", "Output format: markdown, html, json, csv", "markdown")
   .action((dir, opts) => reportCommand(dir, opts.format));
+
+program
+  .command("cache")
+  .description("Manage cache: 'stats' or 'clear'")
+  .argument("<action>", "stats or clear")
+  .argument("[directory]", "Target directory")
+  .action((action, dir) => cacheCommand(action, dir));
 
 program.parse(process.argv);
