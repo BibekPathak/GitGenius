@@ -8,6 +8,7 @@ import { embedCommand } from "./commands/embed.js";
 import { searchCommand } from "./commands/search.js";
 import { askCommand } from "./commands/ask.js";
 import { evolutionCommand } from "./commands/evolution.js";
+import { ownershipCommand } from "./commands/ownership.js";
 
 const program = new Command();
 
@@ -80,5 +81,11 @@ program
   .argument("<path>", "File path")
   .argument("[directory]", "Target directory")
   .action((filePath, dir) => evolutionCommand(dir, { file: filePath }));
+
+program
+  .command("ownership")
+  .description("Show developer contributions, file ownership, and bus factor")
+  .argument("[directory]", "Target directory")
+  .action((dir) => ownershipCommand(dir));
 
 program.parse(process.argv);
