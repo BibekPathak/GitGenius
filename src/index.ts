@@ -11,6 +11,7 @@ import { evolutionCommand } from "./commands/evolution.js";
 import { ownershipCommand } from "./commands/ownership.js";
 import { hotspotsCommand } from "./commands/hotspots.js";
 import { releaseCommand } from "./commands/release.js";
+import { reportCommand } from "./commands/report.js";
 
 const program = new Command();
 
@@ -103,5 +104,12 @@ program
   .argument("<to>", "Ending ref (tag or commit hash)")
   .argument("[directory]", "Target directory")
   .action((from, to, dir) => releaseCommand(from, to, dir));
+
+program
+  .command("report")
+  .description("Generate repository report")
+  .argument("[directory]", "Target directory")
+  .option("-f, --format <format>", "Output format: markdown, html, json, csv", "markdown")
+  .action((dir, opts) => reportCommand(dir, opts.format));
 
 program.parse(process.argv);
