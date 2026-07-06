@@ -13,6 +13,7 @@ import { hotspotsCommand } from "./commands/hotspots.js";
 import { releaseCommand } from "./commands/release.js";
 import { reportCommand } from "./commands/report.js";
 import { cacheCommand } from "./commands/cache.js";
+import { exportCommand } from "./commands/export.js";
 
 const program = new Command();
 
@@ -119,5 +120,12 @@ program
   .argument("<action>", "stats or clear")
   .argument("[directory]", "Target directory")
   .action((action, dir) => cacheCommand(action, dir));
+
+program
+  .command("export")
+  .description("Export repository report (markdown, html, json, csv, pdf)")
+  .argument("[directory]", "Target directory")
+  .option("-f, --format <format>", "Output format", "markdown")
+  .action((dir, opts) => exportCommand(dir, opts.format));
 
 program.parse(process.argv);
