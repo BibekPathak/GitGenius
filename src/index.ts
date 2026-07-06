@@ -10,6 +10,7 @@ import { askCommand } from "./commands/ask.js";
 import { evolutionCommand } from "./commands/evolution.js";
 import { ownershipCommand } from "./commands/ownership.js";
 import { hotspotsCommand } from "./commands/hotspots.js";
+import { releaseCommand } from "./commands/release.js";
 
 const program = new Command();
 
@@ -94,5 +95,13 @@ program
   .description("Find high-churn, high-risk files")
   .argument("[directory]", "Target directory")
   .action((dir) => hotspotsCommand(dir));
+
+program
+  .command("release")
+  .description("Generate release notes between two tags/refs")
+  .argument("<from>", "Starting ref (tag or commit hash)")
+  .argument("<to>", "Ending ref (tag or commit hash)")
+  .argument("[directory]", "Target directory")
+  .action((from, to, dir) => releaseCommand(from, to, dir));
 
 program.parse(process.argv);
