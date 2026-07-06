@@ -7,6 +7,7 @@ import { analyzeCommand } from "./commands/analyze.js";
 import { embedCommand } from "./commands/embed.js";
 import { searchCommand } from "./commands/search.js";
 import { askCommand } from "./commands/ask.js";
+import { evolutionCommand } from "./commands/evolution.js";
 
 const program = new Command();
 
@@ -59,8 +60,25 @@ program
 
 program
   .command("ask")
-  .description("Ask questions about the repository")
-  .argument("[question]", "Your question")
-  .action(askCommand);
+  .description("Ask questions about your repository (RAG over git history)")
+  .argument("<question>", "Your question")
+  .argument("[directory]", "Target directory")
+  .option("-m, --model <name>", "LLM model name", "gemini-2.0-flash")
+  .action((question, dir, opts) => askCommand(question, dir, { model: opts.model }));
+
+program
+  .command("files")
+  .description("List files by commit frequency or churn")
+  .argument("[directory]", "Target directory")
+  .option("-s, --sort <sort>", "Sort by 'commits' or 'churn'", "commits")
+  .option("-l, --limit <number>", "Max results", "20")
+  .action((dir, opts) => evolutionCommand(dir, { sort: opts.sort, limit: parseInt(opts.limit, 10) }));
+
+program
+  .command("file")
+  .description("Show timeline for a specific file")
+  .argument("<path>", "File path")
+  .argument("[directory]", "Target directory")
+  .action((filePath, dir) => evolutionCommand(dir, { file: filePath }));
 
 program.parse(process.argv);
