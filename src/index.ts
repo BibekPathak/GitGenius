@@ -9,6 +9,7 @@ import { searchCommand } from "./commands/search.js";
 import { askCommand } from "./commands/ask.js";
 import { evolutionCommand } from "./commands/evolution.js";
 import { ownershipCommand } from "./commands/ownership.js";
+import { hotspotsCommand } from "./commands/hotspots.js";
 
 const program = new Command();
 
@@ -87,5 +88,11 @@ program
   .description("Show developer contributions, file ownership, and bus factor")
   .argument("[directory]", "Target directory")
   .action((dir) => ownershipCommand(dir));
+
+program
+  .command("hotspots")
+  .description("Find high-churn, high-risk files")
+  .argument("[directory]", "Target directory")
+  .action((dir) => hotspotsCommand(dir));
 
 program.parse(process.argv);
