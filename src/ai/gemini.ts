@@ -1,6 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import type { AIProvider, ChunkData, ChunkAnalysis, AIProviderName } from "./types.js";
 import { buildAnalyzePrompt } from "../prompts/analyze.js";
+import { extractJson, parseJson } from "./parse.js";
 
 function getApiKey(): string {
   const key = process.env.GEMINI_API_KEY;
@@ -36,7 +37,7 @@ export function createGeminiProvider(modelName?: string): AIProvider {
 
       // Extract JSON from the response (handle markdown code fences)
       const jsonStr = extractJson(text);
-      const parsed = JSON.parse(jsonStr) as Partial<ChunkAnalysis>;
+      const parsed = parseJson(jsonStr) as Partial<ChunkAnalysis>;
 
       return {
         summary: parsed.summary ?? "No summary provided",
@@ -47,20 +48,4 @@ export function createGeminiProvider(modelName?: string): AIProvider {
       };
     },
   };
-}
-
-function extractJson(text: string): string {
-  // Try to find JSON between ```json and ``` markers
-  const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (jsonMatch) {
-    return jsonMatch[1]!.trim();
-  }
-
-  // Try to find a JSON object directly
-  const braceMatch = text.match(/\{[\s\S]*\}/);
-  if (braceMatch) {
-    return braceMatch[0].trim();
-  }
-
-  return text;
 }

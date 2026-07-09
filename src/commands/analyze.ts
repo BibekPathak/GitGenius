@@ -7,14 +7,24 @@ import { getPrisma, closePrisma } from "../db/client.js";
 import { getRepository } from "../db/queries.js";
 import { createJob, updateJob } from "../db/queries.js";
 import { createGeminiProvider } from "../ai/gemini.js";
+import { createOpenAIProvider } from "../ai/openai.js";
 import type { AIProvider, ChunkData, AnalyzeResult, ChunkAnalysis } from "../ai/types.js";
+import type { AIProviderName } from "../ai/types.js";
 import { FileCache } from "../cache/index.js";
 import { cacheDir } from "../utils/paths.js";
 import { spinner } from "../utils/spinner.js";
 
+const DEFAULT_RATE_LIMIT_DELAY_MS = 1500;
+
 export interface AnalyzeOptions {
   retry?: boolean;
   model?: string;
+  delay?: number;
+  providerName?: AIProviderName;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 export async function analyzeCommand(
@@ -22,6 +32,7 @@ export async function analyzeCommand(
   options?: AnalyzeOptions & { provider?: AIProvider }
 ): Promise<void> {
   const targetDir = dir ?? process.cwd();
+  const delayMs = options?.delay ?? DEFAULT_RATE_LIMIT_DELAY_MS;
 
   const sp = spinner("Preparing...").start();
 
@@ -52,7 +63,6 @@ export async function analyzeCommand(
     throw new Error("Repository not found");
   }
 
-  // Find chunks to analyze
   const chunkStatusFilter = options?.retry ? ["PENDING", "FAILED"] : ["PENDING"];
   const chunks = await prisma.chunk.findMany({
     where: { repositoryId: repo.id, status: { in: chunkStatusFilter } },
@@ -65,16 +75,25 @@ export async function analyzeCommand(
     return;
   }
 
-  sp.text = `Analyzing ${chunks.length} chunk(s) with Gemini...`;
+  sp.text = `Analyzing ${chunks.length} chunk(s) (${options?.providerName ?? "gemini"}, ${delayMs}ms delay)...`;
 
   let provider: AIProvider;
   if (options?.provider) {
     provider = options.provider;
   } else {
+    const providerName = options?.providerName ?? "gemini";
     try {
-      provider = createGeminiProvider(options?.model);
+      switch (providerName) {
+        case "openai":
+          provider = createOpenAIProvider(options?.model);
+          break;
+        case "gemini":
+        default:
+          provider = createGeminiProvider(options?.model);
+          break;
+      }
     } catch (e) {
-      sp.fail(chalk.red(`AI provider error: ${e}`));
+      sp.fail(chalk.red(`${providerName} provider error: ${e}`));
       await closePrisma();
       throw e;
     }
@@ -90,6 +109,7 @@ export async function analyzeCommand(
   const results: AnalyzeResult[] = [];
   let processed = 0;
   let failed = 0;
+  let firstErrorShown = false;
 
   const cache = new FileCache(cacheDir(repoRoot));
 
@@ -108,7 +128,6 @@ export async function analyzeCommand(
       },
     });
 
-    // Build chunk data for the prompt
     const commitData = chunkCommits.map((cc) => ({
       hash: cc.commit.hash,
       message: cc.commit.message,
@@ -127,14 +146,18 @@ export async function analyzeCommand(
       commits: commitData,
     };
 
-    sp.text = `Analyzing chunk ${chunk.startIndex + 1}-${chunk.endIndex + 1} (${commitData.length} commits)...`;
+    sp.text = `Analyzing chunk ${chunk.startIndex + 1}-${chunk.endIndex + 1} (${commitData.length} commits, ${processed + 1}/${chunks.length})...`;
 
     try {
       const cacheKey = "analyze:" + cache.contentHash(JSON.stringify(chunkData));
       const analysis = await cache.getOrSetAsync(
         cacheKey,
-        () => provider.analyze(chunkData),
-        7 * 24 * 60 * 60 * 1000 // 7 day TTL
+        async () => {
+          const result = await provider.analyze(chunkData);
+          await sleep(delayMs);
+          return result;
+        },
+        7 * 24 * 60 * 60 * 1000
       );
 
       await prisma.chunk.update({
@@ -156,6 +179,14 @@ export async function analyzeCommand(
         data: { status: "FAILED" },
       });
 
+      if (!firstErrorShown) {
+        firstErrorShown = true;
+        sp.fail(chalk.red(`Chunk ${chunk.startIndex + 1} failed: ${err}`));
+        // Re-start spinner for remaining
+        sp.text = `Continuing with remaining chunks...`;
+        sp.start();
+      }
+
       results.push({
         chunkId: chunk.id,
         analysis: { summary: "", category: "", risk: "", keywords: [], confidence: 0 },
@@ -175,10 +206,17 @@ export async function analyzeCommand(
 
   await closePrisma();
 
+  const firstErr = results.find((r) => !r.success);
+  console.log();
+
   if (failed > 0) {
     sp.warn(chalk.yellow(`Analyzed ${processed} chunk(s), ${failed} failed`));
-    console.log(`  ${chalk.dim("Failed chunks:")} ${results.filter((r) => !r.success).map((r) => r.chunkId.slice(0, 8)).join(", ")}`);
-    console.log(`  ${chalk.cyan("Retry:")} ${chalk.bold("gitgenius analyze --retry")}`);
+    console.log(`  ${chalk.dim("Failed:")}     ${failed}/${chunks.length} chunks`);
+    console.log(`  ${chalk.dim("First error:")} ${firstErr?.error?.slice(0, 120)}`);
+    console.log(`  ${chalk.cyan("Options:")}`);
+    console.log(`    ${chalk.bold("gitgenius analyze --retry")}     retry failed chunks`);
+    console.log(`    ${chalk.bold("gitgenius analyze --delay 3000")} increase delay (ms) between API calls`);
+    console.log(`    ${chalk.bold("gitgenius analyze --retry --delay 3000")} retry with 3s delay`);
   } else {
     sp.succeed(chalk.green(`Analyzed ${processed} chunk(s)`));
     console.log(`  ${chalk.cyan("Next:")} ${chalk.bold("gitgenius embed")} — generate embeddings`);

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import "dotenv/config";
 import { Command } from "commander";
 import { initCommand } from "./commands/init.js";
 import { indexCommand } from "./commands/indexCmd.js";
@@ -44,17 +45,32 @@ program
 program
   .command("analyze")
   .description("Run AI analysis on unanalyzed chunks")
-  .argument("[directory]", "Target directory", process.cwd())
+  .argument("[directory]", "Target directory")
   .option("-r, --retry", "Retry failed chunks")
-  .option("-m, --model <name>", "AI model name", "gemini-2.0-flash")
-  .action((dir, opts) => analyzeCommand(dir, { retry: opts.retry ?? false, model: opts.model }));
+  .option("-p, --provider <name>", "AI provider: gemini or openai", "gemini")
+  .option("-m, --model <name>", "AI model name", "")
+  .option("-d, --delay <ms>", "Delay (ms) between API calls to avoid rate limits", "1500")
+  .action((dir, opts) => analyzeCommand(dir, {
+    retry: opts.retry ?? false,
+    providerName: opts.provider,
+    model: opts.model || undefined,
+    delay: parseInt(opts.delay, 10),
+  }));
 
 program
   .command("embed")
   .description("Generate embeddings for analyzed chunks")
-  .argument("[directory]", "Target directory", process.cwd())
-  .option("-m, --model <name>", "Embedding model name", "text-embedding-004")
-  .action((dir, opts) => embedCommand(dir, { model: opts.model }));
+  .argument("[directory]", "Target directory")
+  .option("-p, --provider <name>", "Provider: gemini or openai", "gemini")
+  .option("-m, --model <name>", "Embedding model name")
+  .option("-r, --retry", "Retry failed chunks")
+  .option("-d, --delay <ms>", "Delay (ms) between API calls", "1500")
+  .action((dir, opts) => embedCommand(dir, {
+    providerName: opts.provider,
+    model: opts.model || undefined,
+    retry: opts.retry ?? false,
+    delay: parseInt(opts.delay, 10),
+  }));
 
 program
   .command("search")
